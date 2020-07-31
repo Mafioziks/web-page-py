@@ -1,0 +1,3 @@
+instance/
+# virtual environment folder skipping
+webapp/

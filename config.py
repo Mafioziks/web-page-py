@@ -1,0 +1,3 @@
+DEBUG = False
+MAIL_FROM_EMAIL = 'tt007@inbox.lv'
+BCRYPT_LOG_ROUNDS = 12
