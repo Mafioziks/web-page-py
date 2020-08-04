@@ -1,23 +1,42 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block content %}
     <h3>Users</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{category}} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endfor %}
+    {% endwith %}
     <table class="table">
         <thead class="thead-dark">
         <tr>
             <th scope="col">#</th>
             <th scope="col">First name</th>
             <th scope="col">Last name</th>
+            <th scope="col">Actions</th>
         </tr>
         </thead>
         <tbody>
-            {% for user in user_list %}
-            <tr>
-                <th scope="row">{{ user.id }}</th>
-                <td>{{ user.first_name }}</td>
-                <td>{{ user.last_name }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
+            {% if user_list %}
+                {% for user in user_list %}
+                <tr>
+                    <th scope="row">{{ user.id }}</th>
+                    <td>{{ user.first_name }}</td>
+                    <td>{{ user.last_name }}</td>
+                    <td>
+                        <form method="POST" action="/user/{{ user.id }}">
+                            <input name="_method" value="DELETE" hidden/>
+                            <button class="btn btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+            </tbody>
     </table>
 {% endblock %}
