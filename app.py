@@ -1,3 +1,4 @@
+from functools import wraps
 from flask import Flask, request, redirect, url_for, jsonify, render_template, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from passlib.hash import sha256_crypt
@@ -14,6 +15,24 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+class UserPermission(db.Model):
+    user_id = db.Column(db.Integer, primary_key=True)
+    permission_id = db.Column(db.Integer, primary_key=True)
+
+    def __init__(self, user_id, permission_id):
+        self.user_id = user_id
+        self.permission_id = permission_id
+
+class Permission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+
+    def __init__(self, permission_name):
+        self.name = permission_name
+
+    def find(permission_name):
+        return self.query.filter_by(name=permission_name)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100))
@@ -25,48 +44,120 @@ class User(db.Model):
         self.first_name = first_name
         self.last_name = last_name
 
-class UserPermission(db.Model):
-    user_id = db.Column(db.Integer, primary_key=True)
-    pemrission_id = db.Column(db.Integer, primary_key=True)
+    def hash_password(password):
+        return sha256_crypt.encrypt(password)
 
-    def __init__(self, user_id, permission_id):
-        self.user_id = user_id
-        self.pemrission_id = permission_id
+    def is_same_password(self, password) -> bool:
+        return sha256_crypt.verify(password, self.password)
 
-class Permission(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
+    def have_permission(permission: Permission) -> bool:
+        user_permissions = UserPermission.query.filter_by(user_id=self.id, permission_id=permission.id)
 
-    def __init__(self, permission_name):
-        self.name = permission_name
+        if None is user_permissions:
+            return False
 
+        return True
+
+db.drop_all()
 db.create_all()
 
 def seed_db():
     """
     Here should be seeded admin user and permissions
     """
+    permission = Permission('manage_users')
+    db.session.add(permission)
+
+    user = User('Admin', 'User')
+    user.email = 'tt007@inbox.lv'
+    user.password = User.hash_password('Password123')
+    db.session.add(user)
+
+    db.session.commit()
+
+    permission = Permission.query.filter_by(name='manage_users').first()
+    user = User.query.filter_by(email='tt007@inbox.lv').first()
+
+    # something wrong with data 
+    db.session.add(UserPermission(user.id, permission.id))
+    db.session.commit()
 
 # app
+
+user = None
+permissions = set()
+
+def setup_user():
+    global user
+    if is_authorized():
+        user = User.query.filter_by(id=session['user']).first()
+
+def setup_permissions():
+    if not is_authorized():
+        return
+    
+    global user
+    user_permissions = UserPermission.query.filter_by(user_id=user.id).all()
+    permission_ids   = set()
+
+    for user_permission in user_permissions:
+        permission_ids.add(user_permission.permission_id)
+
+    global permissions
+    filtered_permissions = Permission.query.filter(Permission.id.in_(permission_ids)).all()
+
+    for filtered_permission in filtered_permissions:
+        permissions.add(filtered_permission.name)
+
+def setup_globals(r):
+    @wraps(r)
+    def global_setup(*args, **kwargs):
+        setup_user()
+        setup_permissions()
+
+        return r(*args, **kwargs)
+    return global_setup
+
+def authorized(r):
+    @wraps(r)
+    def authorization_setup(*args, **kwargs):
+        # setup_user()
+        # setup_permissions()
+        if not is_authorized():
+            return redirect(url_for('login_form'))
+        return r(*args, **kwargs)
+    return authorization_setup
+
+@app.errorhandler(404) 
+def error_page(error):
+    return render_template(f'errors/404.html')
+
+@app.context_processor
+def inject_user():
+    global user
+    global permissions
+    return dict(user=user, permissions=permissions)
 
 def is_authorized():
     if 'user' in session:
         return True
     return False
 
-@app.errorhandler(404) 
-def error_page(error):
-    return render_template(f'errors/404.html')
-
 @app.route('/')
-def main():
-    return 'Main page'
+@setup_globals
+def landing():
+    return render_template('base.html')
 
 @app.route('/user', methods = ['GET'])
+@setup_globals
+@authorized
 def user_list():
+    print("User is: ", user)
     return render_template('user/list.html', user_list=User.query.all(), authorized=is_authorized()) 
 
 @app.route('/user/<id>', methods = ['DELETE', 'POST'])
+@setup_globals
+@authorized
 def user_delete(id):
     if ('POST' == request.method and 'DELETE' != request.form['_method']):
         return redirect(url_for('error_page', 404), 404)
@@ -85,16 +176,21 @@ def user_delete(id):
 
 @app.route('/auth/register', methods = ['GET'])
 def register_form():
+    if is_authorized():
+        return redirect(url_for('profile'))
     return render_template('auth/register.html')
 
 @app.route('/auth/register', methods = ['POST'])
 def register():
+    if is_authorized():
+        return redirect(url_for('profile'))
+
     if (request.form['password'] != request.form['password_repeated']):
         return redirect(url_for('register_form'))
 
     user = User(request.form['first_name'], request.form['last_name'])
     user.email = request.form['email']
-    user.password = sha256_crypt.encrypt(request.form['password'])
+    user.password = User.hash_password(request.form['password'])
 
     db.session.add(user)
     db.session.commit()
@@ -109,16 +205,21 @@ def register():
     
 
 @app.route('/auth/login', methods = ['GET'])
+@setup_globals
 def login_form():
+    if is_authorized():
+        return redirect(url_for('profile'))
     return render_template('auth/login.html')
 
 @app.route('/auth/login', methods = ['POST'])
 def auth_login():
-    user = User.query.filter_by(email=request.form['email'], password=sha256_crypt.encrypt(request.form['password'])).first()
+    if is_authorized():
+        return redirect(url_for('profile'))
 
-    if None == user:
+    user = User.query.filter_by(email=request.form['email']).first()
+
+    if (None == user or not user.is_same_password(request.form['password'])):
         return redirect(url_for('login_form'))
-
 
     session.permanent = True
     session['user']   = user.id
@@ -126,13 +227,17 @@ def auth_login():
     return redirect(url_for('profile'))
 
 @app.route('/auth/logout', methods = ['GET'])
+@setup_globals
+@authorized
 def logout():
     if 'user' in session:
         session.pop('user', None)
 
-    return redirect(url_for('main'))
+    return redirect(url_for('landing'))
 
 @app.route('/profile')
+@setup_globals
+@authorized
 def profile():
     if 'user' not in session: 
         return redirect(url_for('login_form'))

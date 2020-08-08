@@ -19,9 +19,11 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarText">
                 <ul class="navbar-nav mr-auto">
+                {% if 'manage_users' in permissions %}
                 <li class="nav-item">
                     <a class="nav-link" href="/user">Users</a>
                 </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link" href="#">Pricing</a>
                 </li>
@@ -44,8 +46,7 @@
                 </span>
             </div>
         </nav>
-        <div class="container">
-            
+        <div class="container">          
             {% block content %}{% endblock %}
         </div>
         <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
