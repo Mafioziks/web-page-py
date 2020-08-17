@@ -1,3 +1,7 @@
+wheel
 Flask
+flask-mail
+Flask-Assets
 flask-sqlalchemy
 passlib
+jsmin

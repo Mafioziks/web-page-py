@@ -1,5 +1,7 @@
 from functools import wraps
 from flask import Flask, request, redirect, url_for, jsonify, render_template, session, flash
+from flask_mail import Mail, Message
+from flask_assets import Environment, Bundle
 from flask_sqlalchemy import SQLAlchemy
 from passlib.hash import sha256_crypt
 from datetime import timedelta
@@ -8,8 +10,25 @@ app = Flask(__name__)
 app.secret_key = 'backend_ap1_k3y'
 app.permanent_session_lifetime = timedelta(hours=3)
 
+# database configs
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# mail configs
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'toms.teteris.personal@gmail.com'  # enter your email here
+app.config['MAIL_DEFAULT_SENDER'] = 'toms.teteris.personal@gmail.com' # enter your email here
+app.config['MAIL_PASSWORD'] = 'Mafioziks007' # enter your password here
+
+
+assets = Environment(app)
+js = Bundle('base.js', filters='jsmin', output='interactive/packed.js')
+assets.register('js_all', js)
+icons = Bundle('bootstrap-icons.svg')
+assets.register('icons', icons)
+mail = Mail(app)
 
 # models
 
@@ -50,7 +69,7 @@ class User(db.Model):
     def is_same_password(self, password) -> bool:
         return sha256_crypt.verify(password, self.password)
 
-    def have_permission(permission: Permission) -> bool:
+    def have_permission(self, permission: Permission) -> bool:
         user_permissions = UserPermission.query.filter_by(user_id=self.id, permission_id=permission.id)
 
         if None is user_permissions:
@@ -121,8 +140,6 @@ def setup_globals(r):
 def authorized(r):
     @wraps(r)
     def authorization_setup(*args, **kwargs):
-        # setup_user()
-        # setup_permissions()
         if not is_authorized():
             return redirect(url_for('login_form'))
         return r(*args, **kwargs)
@@ -136,7 +153,7 @@ def error_page(error):
 def inject_user():
     global user
     global permissions
-    return dict(user=user, permissions=permissions)
+    return dict(user=user, permissions=permissions, is_authorized=is_authorized)
 
 def is_authorized():
     if 'user' in session:
@@ -185,7 +202,14 @@ def register():
     if is_authorized():
         return redirect(url_for('profile'))
 
+    user = User.query.filter_by(email=request.form['email']).first()
+
+    if None is not user:
+        flash('Email already used', 'danger')
+        return redirect(url_for('register_form'))
+
     if (request.form['password'] != request.form['password_repeated']):
+        flash('Password need to be same both times', 'danger')
         return redirect(url_for('register_form'))
 
     user = User(request.form['first_name'], request.form['last_name'])
@@ -195,13 +219,13 @@ def register():
     db.session.add(user)
     db.session.commit()
 
+    mail_message = Message('Email validation on registration', recipients = [user.email])
+    mail_message.body = 'This is email verification email at registration time!'
+    mail.send(mail_message)
+
     session.permanent = True
     session['user']   = user.id
     return redirect(url_for('profile'))
-    # logged_user = User.query.filter_by(email=user.email, password=sha256_crypt.encrypt(request.form['email'])).first()
-    # if None == logged_user:
-    #     return redirect(url_for('register_form'))
-
     
 
 @app.route('/auth/login', methods = ['GET'])
@@ -219,6 +243,7 @@ def auth_login():
     user = User.query.filter_by(email=request.form['email']).first()
 
     if (None == user or not user.is_same_password(request.form['password'])):
+        flash('Wrong email or/and password', 'danger')
         return redirect(url_for('login_form'))
 
     session.permanent = True
@@ -234,6 +259,32 @@ def logout():
         session.pop('user', None)
 
     return redirect(url_for('landing'))
+
+@app.route('/auth/change-password', methods = ['GET'])
+@setup_globals
+@authorized
+def change_password_form():
+    return render_template('auth/change_password.html')
+
+@app.route('/auth/change-password', methods = ['POST'])
+@setup_globals
+@authorized
+def save_password_change():
+    if request.form['new-password'] != request.form['new-password-repeated']:
+        flash('New password and repeated is not same', 'danger')
+        return redirect(url_for('change_password_form'))
+
+    user.password = User.hash_password(request.form['new-password'])
+    db.session.add(user)
+    db.session.commit()
+
+    flash('Password successfuly changed', 'success')
+
+    mail_message = Message('Password has been changed', recipients = [user.email])
+    mail_message.body = 'Password has been changed'
+    mail.send(mail_message)
+
+    return redirect(url_for('profile'))
 
 @app.route('/profile')
 @setup_globals

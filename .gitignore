@@ -1,3 +1,4 @@
 instance/
 # virtual environment folder skipping
 webapp/
+static/.webassets-cache
