@@ -4,7 +4,7 @@
 <div class="card center" style="width: 24rem;">
     <div class="card-body">
       <h5 class="card-title">Log in</h5>
-        <form method="POST" action="{{ url_form('auth.auth_login') }}">
+        <form method="POST" action="{{ url_for('auth.auth_login') }}">
             <div class="form-group">
                 <label for="email">Email address</label>
                 <input type="email" class="form-control" id="email" aria-describedby="emailHelp" name="email">

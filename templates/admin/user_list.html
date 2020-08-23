@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h3>Users</h3>
+    <table class="table">
+        <thead class="thead-dark">
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">First name</th>
+            <th scope="col">Last name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+            {% if user_list %}
+                {% for user_listed in user_list %}
+                <tr>
+                    <th scope="row">{{ user_listed.id }}</th>
+                    <td>{{ user_listed.first_name }}</td>
+                    <td>{{ user_listed.last_name }}</td>
+                    <td>{{ user_listed.email }}</td>
+                    <td>
+                        {% if user_listed.id != user.id %}
+                        <form method="POST" action="{{ url_for('user_delete', id=user_listed.id) }}">
+                            <input name="_method" value="DELETE" hidden/>
+                            <button class="btn btn-danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+            </tbody>
+    </table>
+{% endblock %}

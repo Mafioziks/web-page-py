@@ -1,13 +1,15 @@
 from functools import wraps
-from flask import Flask, request, redirect, url_for, jsonify, render_template, session, flash
+from flask import Flask, request, redirect, url_for, jsonify, render_template, session, flash, g
 from flask_mail import Mail, Message
 from flask_assets import Environment, Bundle
 from flask_sqlalchemy import SQLAlchemy
 from passlib.hash import sha256_crypt
 from datetime import timedelta
-from wrappers import authorized, setup_globals, is_authorized
-from auth import authorization_blueprint
+from app_wrappers import authorized, setup_globals, is_authorized
 from models import User, UserPermission, Permission, db as app_db
+from auth import authorization_blueprint
+from admin import admin_blueprint # this maybe remove
+from permission import permission_blueprint
 
 def create_app():
     app = None
@@ -20,12 +22,12 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # mail configs
-    app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
-    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_SERVER']     = 'smtp.googlemail.com'
+    app.config['MAIL_PORT']       = 587
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = 'toms.teteris.personal@gmail.com'  # enter your email here
     app.config['MAIL_DEFAULT_SENDER'] = 'toms.teteris.personal@gmail.com' # enter your email here
-    app.config['MAIL_PASSWORD'] = 'Mafioziks007' # enter your password here
+    app.config['MAIL_PASSWORD'] = '-------' # enter your password here
 
 
     assets = Environment(app)
@@ -35,14 +37,18 @@ def create_app():
     assets.register('icons', icons)
     mail = Mail(app)
 
+    # Blueprints
     app.register_blueprint(authorization_blueprint, url_prefix='/auth')
-    # models
+    app.register_blueprint(admin_blueprint, url_prefix='/admin')
+    app.register_blueprint(permission_blueprint, url_prefix='/permission')
 
+    # models
     app_db.init_app(app)
     with app.app_context():
+        app_db.drop_all()
         app_db.create_all()
 
-    # seed_db(app_db)
+    seed_db(app_db)
     add_main_routes(app, app_db)
 
     return app
@@ -51,20 +57,20 @@ def seed_db(db):
     """
     Here should be seeded admin user and permissions
     """
-    permission = Permission('manage_users')
+    permission              = Permission('manage_users')
+    permissions.description = 'Can manage users'
     db.session.add(permission)
 
-    user = User('Admin', 'User')
-    user.email = 'tt007@inbox.lv'
+    user          = User('Admin', 'User')
+    user.email    = 'tt007@inbox.lv'
     user.password = User.hash_password('Password123')
     db.session.add(user)
 
     db.session.commit()
 
     permission = Permission.query.filter_by(name='manage_users').first()
-    user = User.query.filter_by(email='tt007@inbox.lv').first()
+    user       = User.query.filter_by(email='tt007@inbox.lv').first()
 
-    # something wrong with data 
     db.session.add(UserPermission(user.id, permission.id))
     db.session.commit()
 
@@ -81,8 +87,8 @@ def add_main_routes(app, db):
 
     @app.context_processor
     def inject_user():
-        global user
-        global permissions
+        user       = g.get('user', None)
+        permission = g.get('permissions', set())
         return dict(user=user, permissions=permissions, is_authorized=is_authorized)
 
     @app.route('/')
@@ -94,7 +100,6 @@ def add_main_routes(app, db):
     @setup_globals
     @authorized
     def user_list():
-        print("User is: ", user)
         return render_template('user/list.html', user_list=User.query.all(), authorized=is_authorized()) 
 
     @app.route('/user/<id>', methods = ['DELETE', 'POST'])
@@ -104,6 +109,11 @@ def add_main_routes(app, db):
         if ('POST' == request.method and 'DELETE' != request.form['_method']):
             return redirect(url_for('error_page', 404), 404)
         
+        permissions = g.get('permissions')
+
+        if 'manage_users' not in permissions:
+            return redirect(url_for('error_page', 403), 403)
+
         user = User.query.filter_by(id=id).first()
         
         if None == user:

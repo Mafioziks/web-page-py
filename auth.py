@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, session, request, g
-from wrappers import setup_globals, authorized, is_authorized
+from app_wrappers import setup_globals, authorized, is_authorized
 from models import User, db
 from flask_mail import Mail, Message
 
@@ -88,6 +88,7 @@ def save_password_change():
         flash('New password and repeated is not same', 'danger')
         return redirect(url_for('auth.change_password_form'))
 
+    user          = g.get('user', None)
     user.password = User.hash_password(request.form['new-password'])
     db.session.add(user)
     db.session.commit()
