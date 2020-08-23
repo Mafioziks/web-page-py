@@ -1,4 +1,5 @@
 instance/
+__pycache__/
 # virtual environment folder skipping
 webapp/
 static/.webassets-cache

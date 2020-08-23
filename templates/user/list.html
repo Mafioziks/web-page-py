@@ -22,7 +22,7 @@
                     <td>{{ user_listed.email }}</td>
                     <td>
                         {% if user_listed.id != user.id %}
-                        <form method="POST" action="/user/{{ user_listed.id }}">
+                        <form method="POST" action="{{ url_for('user_delete', id=user_listed.id) }}">
                             <input name="_method" value="DELETE" hidden/>
                             <button class="btn btn-danger">Delete</button>
                         </form>

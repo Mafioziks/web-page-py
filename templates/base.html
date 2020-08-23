@@ -21,7 +21,7 @@
                 <ul class="navbar-nav mr-auto">
                 {% if 'manage_users' in permissions %}
                 <li class="nav-item">
-                    <a class="nav-link" href="/user">Users</a>
+                    <a class="nav-link" href="{{ url_for('user') }}">Users</a>
                 </li>
                 {% endif %}
                 <li class="nav-item">
@@ -32,14 +32,14 @@
                     <ul class="navbar-nav">
                         {% if is_authorized() %}
                         <li class="nav-item">
-                            <a class="nav-link" href="/profile">Profile</a>
+                            <a class="nav-link" href="{{ url_for('profile') }}">Profile</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/auth/logout">Logout</a>
+                            <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
                         </li>
                         {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="/auth/login">Login</a>
+                            <a class="nav-link" href="{{ url_for('auth.login_form') }}">Login</a>
                         </li>
                         {% endif %}
                     </ul>

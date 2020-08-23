@@ -4,7 +4,7 @@
 <div class="card center" style="width: 24rem;">
     <div class="card-body">
       <h5 class="card-title">Log in</h5>
-        <form method="POST" action="/auth/login">
+        <form method="POST" action="{{ url_form('auth.auth_login') }}">
             <div class="form-group">
                 <label for="email">Email address</label>
                 <input type="email" class="form-control" id="email" aria-describedby="emailHelp" name="email">
@@ -28,7 +28,7 @@
             <button type="submit" class="btn btn-primary">Login</button>
         </form>
         <hr/>
-        <a href="/auth/register">Register</a>
+        <a href="{{ url_for('auth.register_form') }}">Register</a>
     </div>
 </div>
 {% endblock %}

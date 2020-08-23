@@ -3,6 +3,6 @@
 {% block content %}
     <p>
         <h3>Profile of: {{ user.first_name }} {{ user.last_name }}</h3>
-        <a class="btn btn-primary" href="/auth/change-password">Change Password</a>
+        <a class="btn btn-primary" href="{{ url_for('auth.change_password_form') }}">Change Password</a>
     </p>
 {% endblock %}
