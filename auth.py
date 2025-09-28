@@ -5,13 +5,15 @@ from flask_mail import Mail, Message
 
 authorization_blueprint = Blueprint('auth', __name__, template_folder='templates/auth')
 
-@authorization_blueprint.route('/register', methods = ['GET'])
+
+@authorization_blueprint.route('/register', methods=['GET'])
 def register_form():
     if is_authorized():
         return redirect(url_for('profile'))
     return render_template('auth/register.html')
 
-@authorization_blueprint.route('/register', methods = ['POST'])
+
+@authorization_blueprint.route('/register', methods=['POST'])
 def register():
     if is_authorized():
         return redirect(url_for('profile'))
@@ -22,7 +24,7 @@ def register():
         flash('Email already used', 'danger')
         return redirect(url_for('auth.register_form'))
 
-    if (request.form['password'] != request.form['password_repeated']):
+    if request.form['password'] != request.form['password_repeated']:
         flash('Password need to be same both times', 'danger')
         return redirect(url_for('auth.register_form'))
 
@@ -38,34 +40,36 @@ def register():
     # mail.send(mail_message)
 
     session.permanent = True
-    session['user']   = user.id
+    session['user'] = user.id
     return redirect(url_for('profile'))
-    
 
-@authorization_blueprint.route('/login', methods = ['GET'])
+
+@authorization_blueprint.route('/login', methods=['GET'])
 @setup_globals
 def login_form():
     if is_authorized():
         return redirect(url_for('profile'))
     return render_template('auth/login.html')
 
-@authorization_blueprint.route('/login', methods = ['POST'])
+
+@authorization_blueprint.route('/login', methods=['POST'])
 def auth_login():
     if is_authorized():
         return redirect(url_for('profile'))
 
     user = User.query.filter_by(email=request.form['email']).first()
 
-    if (None == user or not user.is_same_password(request.form['password'])):
+    if user is None or not user.is_same_password(request.form['password']):
         flash('Wrong email or/and password', 'danger')
         return redirect(url_for('auth.login_form'))
 
     session.permanent = True
-    session['user']   = user.id
+    session['user'] = user.id
 
     return redirect(url_for('profile'))
 
-@authorization_blueprint.route('/logout', methods = ['GET'])
+
+@authorization_blueprint.route('/logout', methods=['GET'])
 @setup_globals
 @authorized
 def logout():
@@ -74,13 +78,15 @@ def logout():
 
     return redirect(url_for('landing'))
 
-@authorization_blueprint.route('/change-password', methods = ['GET'])
+
+@authorization_blueprint.route('/change-password', methods=['GET'])
 @setup_globals
 @authorized
 def change_password_form():
     return render_template('auth/change_password.html')
 
-@authorization_blueprint.route('/change-password', methods = ['POST'])
+
+@authorization_blueprint.route('/change-password', methods=['POST'])
 @setup_globals
 @authorized
 def save_password_change():
@@ -88,12 +94,12 @@ def save_password_change():
         flash('New password and repeated is not same', 'danger')
         return redirect(url_for('auth.change_password_form'))
 
-    user          = g.get('user', None)
+    user = g.get('user', None)
     user.password = User.hash_password(request.form['new-password'])
     db.session.add(user)
     db.session.commit()
 
-    flash('Password successfuly changed', 'success')
+    flash('Password successfully changed', 'success')
 
     # mail_message = Message('Password has been changed', recipients = [user.email])
     # mail_message.body = 'Password has been changed'

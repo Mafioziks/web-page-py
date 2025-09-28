@@ -8,10 +8,12 @@ from datetime import timedelta
 from app_wrappers import authorized, setup_globals, is_authorized
 from models import User, UserPermission, Permission, db as app_db
 from auth import authorization_blueprint
-from admin import admin_blueprint # this maybe remove
+from admin import admin_blueprint  # this maybe remove
 from permission import permission_blueprint
 
+
 def create_app():
+    global app
     app = None
     app = Flask(__name__)
     app.secret_key = 'backend_ap1_k3y'
@@ -22,13 +24,12 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # mail configs
-    app.config['MAIL_SERVER']     = 'smtp.googlemail.com'
-    app.config['MAIL_PORT']       = 587
+    app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+    app.config['MAIL_PORT'] = 587
     app.config['MAIL_USE_TLS'] = True
     app.config['MAIL_USERNAME'] = 'toms.teteris.personal@gmail.com'  # enter your email here
-    app.config['MAIL_DEFAULT_SENDER'] = 'toms.teteris.personal@gmail.com' # enter your email here
-    app.config['MAIL_PASSWORD'] = '-------' # enter your password here
-
+    app.config['MAIL_DEFAULT_SENDER'] = 'toms.teteris.personal@gmail.com'  # enter your email here
+    app.config['MAIL_PASSWORD'] = '-------'  # enter your password here
 
     assets = Environment(app)
     js = Bundle('base.js', filters='jsmin', output='interactive/packed.js')
@@ -47,32 +48,34 @@ def create_app():
     with app.app_context():
         app_db.drop_all()
         app_db.create_all()
-
-    seed_db(app_db)
+        seed_db(app_db)
     add_main_routes(app, app_db)
 
     return app
+
 
 def seed_db(db):
     """
     Here should be seeded admin user and permissions
     """
-    permission              = Permission('manage_users')
-    permissions.description = 'Can manage users'
+    permission = Permission('manage_users')
+    permission.description = 'Can manage users'
     db.session.add(permission)
 
-    user          = User('Admin', 'User')
-    user.email    = 'tt007@inbox.lv'
+    global user
+    user = User('Admin', 'User')
+    user.email = 'tt007@inbox.lv'
     user.password = User.hash_password('Password123')
     db.session.add(user)
 
     db.session.commit()
 
     permission = Permission.query.filter_by(name='manage_users').first()
-    user       = User.query.filter_by(email='tt007@inbox.lv').first()
+    user = User.query.filter_by(email='tt007@inbox.lv').first()
 
     db.session.add(UserPermission(user.id, permission.id))
     db.session.commit()
+
 
 # app
 
@@ -81,13 +84,14 @@ permissions = set()
 
 
 def add_main_routes(app, db):
-    @app.errorhandler(404) 
+    @app.errorhandler(404)
     def error_page(error):
         return render_template(f'errors/404.html')
 
     @app.context_processor
     def inject_user():
-        user       = g.get('user', None)
+        global user
+        user = g.get('user', None)
         permission = g.get('permissions', set())
         return dict(user=user, permissions=permissions, is_authorized=is_authorized)
 
@@ -96,26 +100,26 @@ def add_main_routes(app, db):
     def landing():
         return render_template('base.html')
 
-    @app.route('/user', methods = ['GET'])
+    @app.route('/user', methods=['GET'])
     @setup_globals
     @authorized
     def user_list():
-        return render_template('user/list.html', user_list=User.query.all(), authorized=is_authorized()) 
+        return render_template('user/list.html', user_list=User.query.all(), authorized=is_authorized())
 
-    @app.route('/user/<id>', methods = ['DELETE', 'POST'])
+    @app.route('/user/<id>', methods=['DELETE', 'POST'])
     @setup_globals
     @authorized
     def user_delete(id):
-        if ('POST' == request.method and 'DELETE' != request.form['_method']):
+        if 'POST' == request.method and 'DELETE' != request.form['_method']:
             return redirect(url_for('error_page', 404), 404)
-        
+
         permissions = g.get('permissions')
 
         if 'manage_users' not in permissions:
             return redirect(url_for('error_page', 403), 403)
 
         user = User.query.filter_by(id=id).first()
-        
+
         if None == user:
             flash('User not found!', 'error')
             return redirect(url_for('user_list'))
@@ -130,12 +134,13 @@ def add_main_routes(app, db):
     @setup_globals
     @authorized
     def profile():
-        if 'user' not in session: 
+        if 'user' not in session:
             return redirect(url_for('login_form'))
 
         user = User.query.filter_by(id=session['user']).first()
 
         return render_template('user/profile.html', user=user, authorized=is_authorized())
+
 
 if __name__ == '__main__':
     app = create_app()

@@ -3,6 +3,7 @@ from passlib.hash import sha256_crypt
 
 db = SQLAlchemy()
 
+
 class UserPermission(db.Model):
     user_id = db.Column(db.Integer, primary_key=True)
     permission_id = db.Column(db.Integer, primary_key=True)
@@ -10,6 +11,7 @@ class UserPermission(db.Model):
     def __init__(self, user_id, permission_id):
         self.user_id = user_id
         self.permission_id = permission_id
+
 
 class Permission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -21,6 +23,7 @@ class Permission(db.Model):
 
     def find(permission_name):
         return self.query.filter_by(name=permission_name)
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,10 +1,11 @@
-from flask import Blueprint
+from flask import Blueprint, render_template
 from models import User
 from app_wrappers import is_authorized, authorized, setup_globals
 
 admin_blueprint = Blueprint('admin', __name__, template_folder='templates/admin')
 
-@admin_blueprint.route('/users', methods = ['GET'])
+
+@admin_blueprint.route('/users', methods=['GET'])
 @setup_globals
 @authorized
 def user_list():
